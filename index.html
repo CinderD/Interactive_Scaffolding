@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Active Scaffolding Tutor: Triadic Primes</title>
+    
+    <!-- External Dependencies -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    
+    <!-- Custom Styles -->
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="h-screen flex flex-col overflow-hidden text-slate-800">
+
+    <!-- Header -->
+    <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 z-30 shadow-sm flex-shrink-0">
+        <div class="flex items-center gap-3">
+            <div class="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white">
+                <i data-lucide="book-open" class="w-5 h-5"></i>
+            </div>
+            <div>
+                <h1 class="font-bold text-slate-800 text-lg leading-tight">Proof Tutor</h1>
+                <p class="text-[10px] text-slate-500 font-medium">Topic: Infinitely Many Triadic Primes</p>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-6">
+            <!-- Mode Toggle: Interactive vs Non-Interactive -->
+            <div class="flex items-center gap-2 bg-slate-100 rounded-lg p-1">
+                <button id="mode-interactive" class="px-3 py-1.5 rounded text-xs font-bold bg-indigo-600 text-white transition">
+                    Interactive
+                </button>
+                <button id="mode-noninteractive" class="px-3 py-1.5 rounded text-xs font-bold text-slate-600 hover:bg-white transition">
+                    Non-Interactive
+                </button>
+            </div>
+
+            <!-- Responsibility Slider -->
+            <div class="flex flex-col items-center">
+                <div class="flex justify-between w-32 text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                    <span>Low</span>
+                    <span>Med</span>
+                    <span>High</span>
+                </div>
+                <input type="range" id="responsibility-slider" min="0" max="100" value="30" step="10"
+                    class="w-32 h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    title="Slide to adjust: Low (High Support) -> High (Low Support)">
+            </div>
+
+            <!-- Progress -->
+            <div class="flex flex-col items-end">
+                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Progress</span>
+                <div class="flex items-center gap-1">
+                    <div class="w-20 h-2 bg-slate-100 rounded-full overflow-hidden">
+                        <div id="progress-bar" class="h-full bg-indigo-500 w-0 transition-all duration-500"></div>
+                    </div>
+                    <span id="turn-display" class="text-xs font-bold text-indigo-600">0/<span id="max-questions">0</span></span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <div class="flex-1 flex overflow-hidden relative">
+        
+        <!-- LEFT: Learning Material (Proof A) - Always Visible -->
+        <aside class="w-1/3 bg-white border-r border-slate-200 flex flex-col z-10 overflow-hidden shadow-lg">
+            <div class="p-4 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
+                <h2 class="font-bold text-slate-700 text-sm flex items-center gap-2">
+                    <i data-lucide="file-text" class="w-4 h-4 text-indigo-500"></i> Learning Material
+                </h2>
+            </div>
+            <div class="flex-1 overflow-y-auto p-6 space-y-6 text-sm leading-relaxed bg-white" id="material-content">
+                <div class="prose prose-sm max-w-none text-slate-700">
+                    <h3 class="font-bold text-lg text-slate-900 mb-2">Proof A</h3>
+                    <p class="mb-4"><strong>Theorem:</strong> There are infinitely many triadic primes.</p>
+                    
+                    <p class="mb-2"><strong>Proof:</strong> Consider a product of two monadic numbers: \((4j + 1)(4k + 1)\)</p>
+                    <p class="pl-4 mb-2">\(= 16jk + 4j + 4k + 1\)</p>
+                    <p class="pl-4 mb-4">\(= 4(4jk + j + k) + 1\)</p>
+                    <p class="mb-4"><span class="text-xs font-mono text-slate-400 mr-2">(L1)</span>which is again monadic.</p>
+                    
+                    <p class="mb-4"><span class="text-xs font-mono text-slate-400 mr-2">(L2)</span>Similarly, the product of any number of monadic numbers is monadic.</p>
+                    
+                    <p class="mb-4"><span class="text-xs font-mono text-slate-400 mr-2">(L3)</span>Now, assume the theorem is false, so there are only finitely many triadic primes, say \(p_1, p_2, ..., p_n\).</p>
+                    
+                    <p class="mb-4"><span class="text-xs font-mono text-slate-400 mr-2">(L4)</span>Let \(M = 4p_2...p_n + 3\), where \(p_1 = 3\).</p>
+                    
+                    <p class="mb-4"><span class="text-xs font-mono text-slate-400 mr-2">(L5)</span>\(p_2, p_3, ..., p_n\) do not divide \(M\) as they leave a remainder of 3, and 3 does not divide \(M\) as it does not divide \(4p_2...p_n\).</p>
+                    
+                    <p class="mb-4"><span class="text-xs font-mono text-slate-400 mr-2">(L6)</span>We conclude that no triadic prime divides \(M\).</p>
+                    
+                    <p class="mb-4"><span class="text-xs font-mono text-slate-400 mr-2">(L7)</span>Also, 2 does not divide \(M\) since \(M\) is odd.</p>
+                    
+                    <p class="mb-4"><span class="text-xs font-mono text-slate-400 mr-2">(L8)</span>Thus all of \(M\)'s prime factors are monadic, hence \(M\) itself must be monadic.</p>
+                    
+                    <p class="mb-4"><span class="text-xs font-mono text-slate-400 mr-2">(L9)</span>But \(M\) is clearly triadic, a contradiction. \(\square\)</p>
+                </div>
+            </div>
+        </aside>
+
+        <!-- CENTER: Chat Interaction OR Quiz -->
+        <main class="flex-1 flex flex-col bg-slate-50 relative z-0 overflow-hidden">
+            
+            <!-- Chat View -->
+            <div id="chat-view" class="flex-1 flex flex-col h-full">
+                <div id="chat-container" class="flex-1 overflow-y-auto p-6 space-y-6 scroll-smooth pb-24">
+                    <!-- System Welcome -->
+                    <div class="flex gap-4 slide-in">
+                        <div class="w-10 h-10 bg-indigo-600 rounded-full flex-shrink-0 flex items-center justify-center mt-1 shadow-md text-white">
+                            <i data-lucide="bot" class="w-6 h-6"></i>
+                        </div>
+                        <div class="bg-white p-5 rounded-2xl rounded-tl-none border border-slate-200 shadow-sm max-w-[85%] text-sm text-slate-700">
+                            <p class="mb-2 font-bold text-indigo-700">Welcome to the Interactive Proof Tutor!</p>
+                            <p class="mb-3">Please read <b>Proof A</b> on the left carefully.</p>
+                            <p class="mb-3">To improve your understanding, please work through the self-explanation questions below. These questions are designed to help you:</p>
+                            <ul class="list-disc pl-5 space-y-1 mb-4 text-xs text-slate-600 bg-slate-50 p-3 rounded">
+                                <li>Identify and elaborate the main ideas of the proof</li>
+                                <li>Explain each line in terms of previous ideas</li>
+                                <li>Raise questions about new information</li>
+                            </ul>
+                            <p class="text-xs text-slate-500">Click on the questions below to explore the proof step by step.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Input Area and Preset Questions Panel -->
+                <div class="p-4 bg-white border-t border-slate-200 z-20">
+                    <div class="max-w-4xl mx-auto">
+                        <!-- Free-form question input -->
+                        <div class="mb-4">
+                            <form id="user-question-form" class="flex gap-2">
+                                <input
+                                    type="text"
+                                    id="user-question-input"
+                                    placeholder="Ask any question about the proof..."
+                                    class="flex-1 px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                                />
+                                <button
+                                    type="submit"
+                                    class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-semibold text-sm transition-colors flex items-center gap-2"
+                                >
+                                    <i data-lucide="send" class="w-4 h-4"></i>
+                                    Ask
+                                </button>
+                            </form>
+                        </div>
+                        
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 class="text-xs font-bold text-slate-500 uppercase flex items-center gap-2">
+                                <i data-lucide="help-circle" class="w-4 h-4"></i> Suggested Self-Explanation Questions
+                            </h3>
+                            <button
+                                type="button"
+                                onclick="goToQuizDirect()"
+                                class="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-[11px] font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-100 transition-colors"
+                            >
+                                <i data-lucide="list-checks" class="w-3 h-3"></i>
+                                Skip to Quiz
+                            </button>
+                        </div>
+                        <div id="questions-list" class="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto">
+                            <!-- Questions will be injected here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quiz View -->
+            <div id="quiz-view" class="hidden absolute inset-0 bg-slate-50 z-50 flex flex-col">
+                <div class="p-6 border-b border-slate-200 bg-indigo-50 flex justify-between items-center shadow-sm">
+                    <div>
+                        <h2 class="text-xl font-bold text-indigo-900">Comprehension Test</h2>
+                        <p class="text-sm text-indigo-600">Refer to Proof A on the left if needed.</p>
+                    </div>
+                    <div class="bg-white px-3 py-1 rounded-full text-xs font-bold text-indigo-600 shadow-sm">10 Questions</div>
+                </div>
+                <div class="flex-1 overflow-y-auto p-8" id="quiz-content">
+                    <!-- Questions injected here -->
+                </div>
+                <div class="p-4 border-t border-slate-200 bg-white flex justify-end">
+                    <button onclick="submitQuiz()" class="bg-indigo-600 text-white px-6 py-2.5 rounded-xl font-bold hover:bg-indigo-700 shadow-md transition-all active:scale-95">
+                        Submit Answers
+                    </button>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- Prediction Popover (for High Responsibility) -->
+    <div id="prediction-popover" class="hidden prediction-popover">
+        <h4 class="text-xs font-bold text-indigo-600 uppercase mb-2 flex items-center gap-2">
+            <i data-lucide="brain-circuit" class="w-3 h-3"></i> Predict the Content
+        </h4>
+        <input type="text" id="pred-input" class="w-full border border-slate-300 rounded-md px-3 py-2 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+        <div class="flex justify-end gap-2">
+            <button onclick="closePopover()" class="text-xs text-slate-500 hover:text-slate-700 px-2 py-1">Cancel</button>
+            <button id="pred-submit" class="text-xs bg-indigo-600 text-white px-3 py-1.5 rounded hover:bg-indigo-700 font-medium shadow-sm">Check</button>
+        </div>
+    </div>
+
+    <!-- JavaScript Modules (load in order) -->
+    <script src="js/config.js"></script>
+    <script src="js/data.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/interaction.js"></script>
+    <script src="js/quiz.js"></script>
+    <script src="js/utils.js"></script>
+</body>
+</html>
