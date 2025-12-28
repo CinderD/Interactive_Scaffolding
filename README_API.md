@@ -25,12 +25,21 @@ az login
 **Option C: API Key (Fallback)**
 - Set environment variable: `export AZURE_OPENAI_API_KEY=your-api-key`
 
-### 3. Update API Configuration
+### 3. Configure API Settings
 
-Edit `api_server.py` if needed:
-- `DEFAULT_ENDPOINT`: Your Azure OpenAI endpoint
-- `DEFAULT_DEPLOYMENT`: Your deployment name (currently "gpt-5.1")
-- `DEFAULT_API_VERSION`: API version (currently "2024-10-21")
+Set environment variables (create a `.env` file or export them):
+
+```bash
+export AZURE_OPENAI_ENDPOINT="https://your-endpoint.openai.azure.com/"
+export AZURE_OPENAI_DEPLOYMENT="your-deployment-name"
+export AZURE_OPENAI_API_VERSION="2024-10-21"
+```
+
+Or create a `.env` file (see `.env.example` for template):
+```bash
+cp .env.example .env
+# Then edit .env with your actual values
+```
 
 ### 4. Start the API Server
 

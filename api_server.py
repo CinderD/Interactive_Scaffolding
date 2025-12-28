@@ -18,9 +18,10 @@ app = Flask(__name__)
 CORS(app)  # Enable CORS for frontend
 
 # Azure OpenAI Configuration
-DEFAULT_ENDPOINT = "https://haotian-east-us-2.openai.azure.com/"
-DEFAULT_DEPLOYMENT = "gpt-5.1"
-DEFAULT_API_VERSION = "2024-10-21"
+# Load from environment variables for security
+AZURE_OPENAI_ENDPOINT = os.getenv("AZURE_OPENAI_ENDPOINT", "")
+AZURE_OPENAI_DEPLOYMENT = os.getenv("AZURE_OPENAI_DEPLOYMENT", "")
+AZURE_OPENAI_API_VERSION = os.getenv("AZURE_OPENAI_API_VERSION", "2024-10-21")
 
 # Initialize Azure OpenAI client
 def get_azure_client():
@@ -33,10 +34,13 @@ def get_azure_client():
         )
         token_provider = get_bearer_token_provider(credential, "https://cognitiveservices.azure.com/.default")
         
+        if not AZURE_OPENAI_ENDPOINT:
+            raise ValueError("AZURE_OPENAI_ENDPOINT environment variable is required")
+        
         client = AzureOpenAI(
             azure_ad_token_provider=token_provider,
-            api_version=DEFAULT_API_VERSION,
-            azure_endpoint=DEFAULT_ENDPOINT
+            api_version=AZURE_OPENAI_API_VERSION,
+            azure_endpoint=AZURE_OPENAI_ENDPOINT
         )
         return client
     except Exception as e:
@@ -44,10 +48,12 @@ def get_azure_client():
         # Fallback: try with API key if available
         api_key = os.getenv("AZURE_OPENAI_API_KEY")
         if api_key:
+            if not AZURE_OPENAI_ENDPOINT:
+                raise ValueError("AZURE_OPENAI_ENDPOINT environment variable is required")
             client = AzureOpenAI(
                 api_key=api_key,
-                api_version=DEFAULT_API_VERSION,
-                azure_endpoint=DEFAULT_ENDPOINT
+                api_version=AZURE_OPENAI_API_VERSION,
+                azure_endpoint=AZURE_OPENAI_ENDPOINT
             )
             return client
         raise
@@ -146,9 +152,13 @@ def chat():
             {"role": "user", "content": create_chat_prompt(user_question)}
         ]
         
+        # Validate deployment name
+        if not AZURE_OPENAI_DEPLOYMENT:
+            return jsonify({'error': 'AZURE_OPENAI_DEPLOYMENT environment variable is required'}), 500
+        
         # Call Azure OpenAI
         response = client.chat.completions.create(
-            model=DEFAULT_DEPLOYMENT,
+            model=AZURE_OPENAI_DEPLOYMENT,
             messages=messages,
             temperature=0.7,
             max_tokens=1000,
