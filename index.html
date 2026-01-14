@@ -8,11 +8,16 @@
     <!-- External Dependencies -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
-    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
     <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <!-- Markdown renderer (LLM responses are Markdown) -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     
     <!-- Custom Styles -->
     <link rel="stylesheet" href="css/styles.css">
+    <style>
+        /* Reviewer-only: highlight masked sentences without scratch interaction */
+        .mask-highlight { background: rgb(254 243 199); padding: 0 0.15rem; border-radius: 0.25rem; }
+    </style>
 </head>
 <body class="h-screen flex flex-col overflow-hidden text-slate-800">
 
@@ -30,7 +35,7 @@
 
         <div class="flex items-center gap-6">
             <!-- Mode Toggle: Interactive vs Non-Interactive -->
-            <div class="flex items-center gap-2 bg-slate-100 rounded-lg p-1">
+            <div class="flex items-center gap-2 bg-slate-100 rounded-lg p-1 hidden">
                 <button id="mode-interactive" class="px-3 py-1.5 rounded text-xs font-bold bg-indigo-600 text-white transition">
                     Interactive
                 </button>
@@ -40,7 +45,7 @@
             </div>
 
             <!-- Responsibility Slider -->
-            <div class="flex flex-col items-center">
+            <div class="flex flex-col items-center hidden">
                 <div class="flex justify-between w-32 text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">
                     <span>Low</span>
                     <span>Med</span>
@@ -55,14 +60,40 @@
             <div class="flex flex-col items-end">
                 <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Progress</span>
                 <div class="flex items-center gap-1">
-                    <div class="w-20 h-2 bg-slate-100 rounded-full overflow-hidden">
-                        <div id="progress-bar" class="h-full bg-indigo-500 w-0 transition-all duration-500"></div>
-                    </div>
-                    <span id="turn-display" class="text-xs font-bold text-indigo-600">0/<span id="max-questions">0</span></span>
+                    <span id="turn-display" class="text-xs font-bold text-indigo-600">Turns: 0</span>
                 </div>
+                    <div class="text-[10px] font-semibold text-slate-500 mt-1" id="timer-display">Time: 15:00</div>
             </div>
+
+            <!-- Session ID (primary key) -->
+            <button
+                id="regen-session-id"
+                type="button"
+                class="px-3 py-2 rounded-lg text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 transition active:scale-95"
+                title="Regenerate a random session id (primary key)"
+            >
+                New ID
+            </button>
+
+            <!-- Researcher tool: Reviewer mode -->
+            <button
+                id="open-reviewer"
+                type="button"
+                class="px-3 py-2 rounded-lg text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 transition active:scale-95"
+                title="Researcher tool: review whether <MASK> positions are correct"
+            >
+                Reviewer
+            </button>
         </div>
     </header>
+
+    <!-- Toast (New ID generated) -->
+    <div id="toast" class="hidden fixed top-20 right-6 z-[60]">
+        <div class="bg-white border border-slate-200 shadow-md rounded-xl px-4 py-3 text-sm text-slate-700">
+            <div class="font-bold text-indigo-700 mb-0.5">New ID 已生成</div>
+            <div class="text-xs text-slate-600">现在开始交互</div>
+        </div>
+    </div>
 
     <!-- Main Content -->
     <div class="flex-1 flex overflow-hidden relative">
@@ -79,10 +110,10 @@
                     <h3 class="font-bold text-lg text-slate-900 mb-2">Proof A</h3>
                     <p class="mb-4"><strong>Theorem:</strong> There are infinitely many triadic primes.</p>
                     
-                    <p class="mb-2"><strong>Proof:</strong> Consider a product of two monadic numbers: \((4j + 1)(4k + 1)\)</p>
+                    <p class="mb-2"><span class="text-xs font-mono text-slate-400 mr-2">(L1)</span><strong>Proof:</strong> Consider a product of two monadic numbers: \((4j + 1)(4k + 1)\)</p>
                     <p class="pl-4 mb-2">\(= 16jk + 4j + 4k + 1\)</p>
                     <p class="pl-4 mb-4">\(= 4(4jk + j + k) + 1\)</p>
-                    <p class="mb-4"><span class="text-xs font-mono text-slate-400 mr-2">(L1)</span>which is again monadic.</p>
+                    <p class="mb-4">which is again monadic.</p>
                     
                     <p class="mb-4"><span class="text-xs font-mono text-slate-400 mr-2">(L2)</span>Similarly, the product of any number of monadic numbers is monadic.</p>
                     
@@ -105,9 +136,76 @@
 
         <!-- CENTER: Chat Interaction OR Quiz -->
         <main class="flex-1 flex flex-col bg-slate-50 relative z-0 overflow-hidden">
+
+            <!-- Reviewer View (Researcher tool) -->
+            <div id="reviewer-view" class="hidden absolute inset-0 bg-slate-50 z-50 flex flex-col">
+                <div class="p-6 border-b border-slate-200 bg-indigo-50 flex items-center justify-between shadow-sm">
+                    <div>
+                        <h2 class="text-xl font-bold text-indigo-900">Reviewer: Mask Position Check</h2>
+                        <p class="text-sm text-indigo-600">Mark each LLM response as agree/disagree. Results are saved for comparison.</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button id="close-reviewer" type="button" class="px-3 py-2 rounded-lg text-xs font-bold bg-white text-slate-700 border border-slate-200 hover:bg-slate-100 transition active:scale-95">
+                            Back
+                        </button>
+                    </div>
+                </div>
+                <div class="p-4 border-b border-slate-200 bg-white">
+                    <div class="max-w-5xl mx-auto flex flex-wrap items-center gap-3">
+                        <label class="text-xs font-bold text-slate-600">Reviewer ID</label>
+                        <input id="reviewer-id-input" type="text" placeholder="e.g. rater_01" class="px-3 py-2 border border-slate-300 rounded-lg text-sm w-48" />
+
+                        <div class="text-xs text-slate-500">
+                            You are: <span id="reviewer-current" class="font-bold text-slate-700">(not set)</span>
+                        </div>
+
+                        <label class="text-xs font-bold text-slate-600 ml-2">Session</label>
+                        <select id="review-session-select" class="px-3 py-2 border border-slate-300 rounded-lg text-sm min-w-[320px]"></select>
+
+                        <button id="refresh-review-sessions" type="button" class="px-3 py-2 rounded-lg text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 transition active:scale-95">
+                            Refresh
+                        </button>
+
+                        <div id="reviewer-status" class="text-xs text-slate-500 ml-auto">Ready.</div>
+                    </div>
+                </div>
+                <div class="flex-1 overflow-y-auto p-6">
+                    <div class="max-w-5xl mx-auto space-y-4" id="review-turns"></div>
+                </div>
+            </div>
+
+            <!-- Study Order Selection View -->
+            <div id="study-view" class="absolute inset-0 bg-slate-50 z-50 flex flex-col">
+                <div class="p-6 border-b border-slate-200 bg-indigo-50 shadow-sm">
+                    <h2 class="text-xl font-bold text-indigo-900">Within-Subject Study</h2>
+                    <p class="text-sm text-indigo-600">Choose a mode (1–4) to begin.</p>
+                </div>
+                <div class="flex-1 flex items-center justify-center p-8">
+                    <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-8 max-w-xl w-full">
+                        <div class="text-sm text-slate-700 mb-6">
+                            You will study with the tutor for <b>15 minutes</b>, then take a quiz.
+                            After finishing the first quiz, you will continue to the second phase.
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <button id="study-mode-1" type="button" class="bg-indigo-600 text-white px-6 py-4 rounded-xl font-bold hover:bg-indigo-700 shadow-md transition-all active:scale-95">
+                                Mode 1
+                            </button>
+                            <button id="study-mode-2" type="button" class="bg-indigo-600 text-white px-6 py-4 rounded-xl font-bold hover:bg-indigo-700 shadow-md transition-all active:scale-95">
+                                Mode 2
+                            </button>
+                            <button id="study-mode-3" type="button" class="bg-indigo-600 text-white px-6 py-4 rounded-xl font-bold hover:bg-indigo-700 shadow-md transition-all active:scale-95">
+                                Mode 3
+                            </button>
+                            <button id="study-mode-4" type="button" class="bg-indigo-600 text-white px-6 py-4 rounded-xl font-bold hover:bg-indigo-700 shadow-md transition-all active:scale-95">
+                                Mode 4
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
             
             <!-- Chat View -->
-            <div id="chat-view" class="flex-1 flex flex-col h-full">
+            <div id="chat-view" class="hidden flex-1 flex flex-col h-full">
                 <div id="chat-container" class="flex-1 overflow-y-auto p-6 space-y-6 scroll-smooth pb-24">
                     <!-- System Welcome -->
                     <div class="flex gap-4 slide-in">
@@ -151,7 +249,7 @@
                         </div>
                         
                         <div class="flex items-center justify-between mb-3">
-                            <h3 class="text-xs font-bold text-slate-500 uppercase flex items-center gap-2">
+                            <h3 class="hidden text-xs font-bold text-slate-500 uppercase items-center gap-2">
                                 <i data-lucide="help-circle" class="w-4 h-4"></i> Suggested Self-Explanation Questions
                             </h3>
                             <button
@@ -163,7 +261,7 @@
                                 Skip to Quiz
                             </button>
                         </div>
-                        <div id="questions-list" class="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto">
+                        <div id="questions-list" class="hidden grid grid-cols-1 gap-2 max-h-48 overflow-y-auto">
                             <!-- Questions will be injected here -->
                         </div>
                     </div>
@@ -177,13 +275,13 @@
                         <h2 class="text-xl font-bold text-indigo-900">Comprehension Test</h2>
                         <p class="text-sm text-indigo-600">Refer to Proof A on the left if needed.</p>
                     </div>
-                    <div class="bg-white px-3 py-1 rounded-full text-xs font-bold text-indigo-600 shadow-sm">10 Questions</div>
+                    <div id="quiz-count" class="bg-white px-3 py-1 rounded-full text-xs font-bold text-indigo-600 shadow-sm">Questions</div>
                 </div>
                 <div class="flex-1 overflow-y-auto p-8" id="quiz-content">
                     <!-- Questions injected here -->
                 </div>
                 <div class="p-4 border-t border-slate-200 bg-white flex justify-end">
-                    <button onclick="submitQuiz()" class="bg-indigo-600 text-white px-6 py-2.5 rounded-xl font-bold hover:bg-indigo-700 shadow-md transition-all active:scale-95">
+                    <button id="quiz-submit-btn" onclick="submitQuiz()" class="bg-indigo-600 text-white px-6 py-2.5 rounded-xl font-bold hover:bg-indigo-700 shadow-md transition-all active:scale-95">
                         Submit Answers
                     </button>
                 </div>
@@ -211,6 +309,7 @@
     <script src="js/ui.js"></script>
     <script src="js/interaction.js"></script>
     <script src="js/quiz.js"></script>
+    <script src="js/reviewer.js"></script>
     <script src="js/utils.js"></script>
 </body>
 </html>

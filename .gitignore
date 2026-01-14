@@ -33,6 +33,9 @@ Thumbs.db
 *.log
 logs/
 
+# Local run state
+.run/
+
 # API Keys (if stored locally)
 config.local.py
 secrets.json

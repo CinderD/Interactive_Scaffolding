@@ -14,9 +14,9 @@ body {
    UNIFIED BLUR SCAFFOLDING STYLES
    ========================================== */
 .scaffold-blur {
-    filter: blur(6px);
-    background-color: #cbd5e1;
-    color: transparent;
+    filter: none;
+    background-color: transparent;
+    color: inherit;
     cursor: pointer;
     border-radius: 4px;
     padding: 0 4px;
@@ -24,6 +24,70 @@ body {
     user-select: none;
     display: inline-block;
     vertical-align: bottom;
+    position: relative;
+}
+
+/* ==========================================
+   REALISTIC SCRATCH CARD (CANVAS)
+   ========================================== */
+.scratch-wrapper {
+    display: inline-block;
+    position: relative;
+    vertical-align: bottom;
+    margin: 0 2px;
+    user-select: none;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.3);
+}
+
+.scratch-text {
+    visibility: visible;
+    color: #1e293b;
+    background-color: transparent;
+    padding: 0 4px;
+    border-radius: 4px;
+    font-weight: 400;
+}
+
+.scratch-canvas {
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    right: -2px;
+    bottom: -2px;
+    width: calc(100% + 4px);
+    height: calc(100% + 4px);
+    cursor: crosshair;
+    border-radius: 4px;
+    z-index: 10;
+    transition: opacity 0.5s ease;
+    box-shadow: none;
+    touch-action: none;
+}
+
+.scratch-canvas.locked {
+    cursor: not-allowed;
+}
+
+.scratch-lock {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 20;
+    pointer-events: none;
+    color: #475569;
+    opacity: 0.8;
+}
+
+.scaffold-scratch-canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border-radius: 4px;
+    cursor: pointer;
+    touch-action: none;
+    opacity: 0.98;
 }
 
 .scaffold-revealed {

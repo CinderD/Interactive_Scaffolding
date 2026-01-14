@@ -20,62 +20,121 @@ function renderBotResponse(llmResponse) {
     const contentDiv = document.createElement('div');
     contentDiv.className = "bg-white p-5 rounded-2xl rounded-tl-none border border-slate-200 shadow-sm max-w-[85%] text-sm text-slate-700";
     
-    // Add scaffolding type badge (only if scaffolding is used)
-    if (llmResponse.usesScaffolding && llmResponse.scaffoldType) {
-        const scaffoldTypeNames = {
-            'hinting': 'Hinting',
-            'explaining': 'Explaining',
-            'instructing': 'Instructing',
-            'modeling': 'Modeling'
-        };
-        
-        const intentNames = {
-            'cognitive': 'Cognitive',
-            'metacognitive': 'Metacognitive',
-            'affect': 'Affect'
-        };
-        
-        const badge = document.createElement('div');
-        badge.className = "inline-block mb-2 px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider mr-2";
-        const badgeColors = {
-            'hinting': 'bg-blue-100 text-blue-700',
-            'explaining': 'bg-purple-100 text-purple-700',
-            'instructing': 'bg-green-100 text-green-700',
-            'modeling': 'bg-amber-100 text-amber-700'
-        };
-        badge.className += ' ' + (badgeColors[llmResponse.scaffoldType] || 'bg-slate-100 text-slate-700');
-        badge.textContent = scaffoldTypeNames[llmResponse.scaffoldType] || llmResponse.scaffoldType;
-        contentDiv.appendChild(badge);
-        
-        // Add intent badge if available
-        if (llmResponse.scaffoldIntent) {
-            const intentBadge = document.createElement('div');
-            intentBadge.className = "inline-block mb-2 px-2 py-1 rounded text-[10px] font-semibold text-slate-600 bg-slate-50 border border-slate-200";
-            const intentDisplayName = intentNames[llmResponse.scaffoldIntent] || llmResponse.scaffoldIntent;
-            intentBadge.textContent = `Intent: ${intentDisplayName}`;
-            contentDiv.appendChild(intentBadge);
-        }
-    }
+    // Intentionally do NOT display scaffolding means/intent badges in the UI.
     
-    // Render text with blur elements
+    // Render text as Markdown (LLM response is markdown).
+    // We also support <MASK>...</MASK> tags, which are converted into scratch-off spans.
     const textDiv = document.createElement('div');
     const responseText = llmResponse.responseText || llmResponse.text || '';
-    textDiv.innerHTML = responseText;
+
+    // Configure marked (if present)
+    if (window.marked && !window.__markedConfigured) {
+        try {
+            window.marked.setOptions({
+                gfm: true,
+                breaks: true,
+                headerIds: false,
+                mangle: false,
+            });
+            window.__markedConfigured = true;
+        } catch {
+            // ignore
+        }
+    }
+
+    function escapeAttr(s) {
+        return String(s)
+            .replaceAll('&', '&amp;')
+            .replaceAll('"', '&quot;')
+            .replaceAll("'", '&#39;')
+            .replaceAll('<', '&lt;')
+            .replaceAll('>', '&gt;');
+    }
+
+    function renderMarkdown(md) {
+        if (window.marked && typeof window.marked.parse === 'function') {
+            return window.marked.parse(md);
+        }
+        // Fallback: preserve line breaks (best-effort)
+        return String(md)
+            .replaceAll('&', '&amp;')
+            .replaceAll('<', '&lt;')
+            .replaceAll('>', '&gt;')
+            .replace(/\n/g, '<br>');
+    }
+
+    function renderMaskedMarkdown(md, interactive) {
+        if (!interactive) {
+            // In non-interactive mode, simply remove masking and render normally.
+            return renderMarkdown(String(md).replace(/<MASK>([\s\S]*?)<\/MASK>/g, '$1'));
+        }
+
+        // Replace each <MASK>...</MASK> block with a unique placeholder token,
+        // render the whole response as Markdown, then swap placeholders with scratch spans.
+        const maskedSegments = [];
+        const placeholder = (i) => `@@MASK_SENTENCE_${i}@@`;
+
+        const withPlaceholders = String(md).replace(/<MASK>([\s\S]*?)<\/MASK>/g, (_m, inner) => {
+            const idx = maskedSegments.length;
+            maskedSegments.push(String(inner));
+            return placeholder(idx);
+        });
+
+        let html = renderMarkdown(withPlaceholders);
+
+        // Swap placeholders with scratch-wrapper spans; keep formatting inside masked segment.
+        for (let i = 0; i < maskedSegments.length; i++) {
+            const token = placeholder(i);
+            const innerMd = maskedSegments[i];
+
+            let innerHtml = innerMd;
+            if (window.marked && typeof window.marked.parseInline === 'function') {
+                innerHtml = window.marked.parseInline(innerMd);
+            } else {
+                innerHtml = renderMarkdown(innerMd);
+            }
+
+            // data-word should be plain text for prediction mode.
+            const tmp = document.createElement('div');
+            tmp.innerHTML = innerHtml;
+            const dataWord = tmp.textContent || '';
+
+            const span =
+                `<span class="scratch-wrapper scaffold-blur" data-word="${escapeAttr(dataWord)}">` +
+                `<span class="scratch-text">${innerHtml}</span>` +
+                `</span>`;
+
+            html = html.split(token).join(span);
+        }
+
+        return html;
+    }
+
+    textDiv.innerHTML = renderMaskedMarkdown(responseText, state.isInteractive);
     contentDiv.appendChild(textDiv);
+
+    // Assign mask ids for scratch logging and correlate with the turn.
+    const turnIndex = llmResponse?.__turnIndex ?? null;
+    const blurEls = textDiv.querySelectorAll('.scaffold-blur');
+    blurEls.forEach((el) => {
+        if (!el.dataset.maskId) {
+            try {
+                el.dataset.maskId = crypto?.randomUUID ? crypto.randomUUID() : `mask_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+            } catch {
+                el.dataset.maskId = `mask_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+            }
+        }
+        if (turnIndex !== null) {
+            el.dataset.turnIndex = String(turnIndex);
+        }
+    });
     
-    // Attach click handlers to blur elements
+    // Attach click handlers to blur elements (interactive mode only).
     if (state.isInteractive) {
         const blurElements = textDiv.querySelectorAll('.scaffold-blur');
         blurElements.forEach(el => {
             const word = el.getAttribute('data-word');
-            el.onclick = () => handleBlurClick(el, word);
-        });
-    } else {
-        // Non-interactive mode: reveal all immediately
-        const blurElements = textDiv.querySelectorAll('.scaffold-blur');
-        blurElements.forEach(el => {
-            el.classList.remove('scaffold-blur');
-            el.classList.add('scaffold-revealed');
+            setupScratchOff(el, word);
         });
     }
 
@@ -146,9 +205,8 @@ function removeLoading(id) {
  * Update progress bar
  */
 function updateProgress() {
-    const pct = Math.min(100, (state.usedQuestions.size / PRESET_QUESTIONS.length) * 100);
-    document.getElementById('progress-bar').style.width = pct + '%';
-    document.getElementById('turn-display').textContent = `${state.usedQuestions.size}/${PRESET_QUESTIONS.length}`;
+    const turns = state.turnCounter || 0;
+    document.getElementById('turn-display').textContent = `Turns: ${turns}`;
 }
 
 /**
@@ -156,7 +214,8 @@ function updateProgress() {
  */
 function initializeQuestions() {
     questionsList.innerHTML = '';
-    PRESET_QUESTIONS.forEach((q, idx) => {
+    const questions = getPresetQuestions();
+    questions.forEach((q, idx) => {
         const btn = document.createElement('button');
         btn.className = "question-btn w-full text-left bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-4 py-3 rounded-lg border border-indigo-200 text-sm font-medium";
         btn.textContent = `${idx + 1}. ${q.text}`;
@@ -164,6 +223,5 @@ function initializeQuestions() {
         btn.onclick = () => handleQuestionClick(q);
         questionsList.appendChild(btn);
     });
-    document.getElementById('max-questions').textContent = PRESET_QUESTIONS.length;
 }
 

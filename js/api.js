@@ -14,7 +14,12 @@ async function fetchLLMResponse(questionText) {
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ question: questionText })
+            body: JSON.stringify({
+                question: questionText,
+                proofId: state?.currentProofId || 'A',
+                conditionId: state?.currentConditionId || null,
+                phaseIndex: state?.studyPhaseIndex ?? null,
+            })
         });
         
         if (!response.ok) {
@@ -42,4 +47,96 @@ async function fetchLLMResponse(questionText) {
         };
     }
 }
+
+async function postLog(path, payload) {
+    try {
+        await fetch(`${CONFIG.API_BASE_URL}${path}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(payload),
+        });
+    } catch (e) {
+        // Best-effort only; never block UI.
+        console.warn('Log post failed:', path, e);
+    }
+}
+
+function logTurn({ sessionId, turnIndex, userText, llmResponse }) {
+    if (!sessionId) return;
+    return postLog('/api/log/turn', {
+        sessionId,
+        turnIndex,
+        userText,
+        llmResponse,
+        proofId: state?.currentProofId || null,
+        conditionId: state?.currentConditionId || null,
+        phaseIndex: state?.studyPhaseIndex ?? null,
+        studyMode: state?.studyMode ?? null,
+        interactive: state?.isInteractive ?? null,
+        clientTs: new Date().toISOString(),
+    });
+}
+
+function logScratch({ sessionId, turnIndex, maskId, maskedText, points, meta }) {
+    if (!sessionId || !maskId) return;
+    return postLog('/api/log/scratch', {
+        sessionId,
+        turnIndex,
+        maskId,
+        maskedText,
+        points,
+        meta,
+        proofId: state?.currentProofId || null,
+        conditionId: state?.currentConditionId || null,
+        phaseIndex: state?.studyPhaseIndex ?? null,
+        studyMode: state?.studyMode ?? null,
+        interactive: state?.isInteractive ?? null,
+        clientTs: new Date().toISOString(),
+    });
+}
+
+function logStudyStart({ sessionId, studyMode, studySequence }) {
+    if (!sessionId) return;
+    return postLog('/api/log/study_start', {
+        sessionId,
+        studyMode: studyMode ?? null,
+        studySequence: Array.isArray(studySequence) ? studySequence : null,
+        clientTs: new Date().toISOString(),
+    });
+}
+
+function logQuizSubmit({ sessionId, proofId, phaseIndex, conditionId, studyMode, interactive, score, totalQuestions, answers }) {
+    if (!sessionId) return;
+    return postLog('/api/log/quiz', {
+        sessionId,
+        proofId: proofId ?? null,
+        phaseIndex: phaseIndex ?? null,
+        conditionId: conditionId ?? null,
+        studyMode: studyMode ?? null,
+        interactive: interactive ?? null,
+        score: score ?? null,
+        totalQuestions: totalQuestions ?? null,
+        answers: Array.isArray(answers) ? answers : null,
+        clientTs: new Date().toISOString(),
+    });
+}
+
+    // ==========================================
+    // Hidden export: Self-explanation questions
+    // ==========================================
+
+    async function logSelfExplanationQuestions(payload) {
+        try {
+            await fetch(`${CONFIG.API_BASE_URL}/api/log/self_explanation_questions`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload || {}),
+            });
+        } catch (e) {
+            // Best-effort only
+            console.warn('logSelfExplanationQuestions failed:', e);
+        }
+    }
 
