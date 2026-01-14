@@ -41,6 +41,14 @@ interactive_scaffolding/
 pip install -r requirements.txt
 ```
 
+Tip: using a virtual environment is recommended.
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
 ### 2. Configure Azure Authentication
 
 Choose one method:
@@ -55,22 +63,42 @@ az login
 export AZURE_OPENAI_API_KEY=your-api-key
 ```
 
-### 3. Start API Server
+You may also need these environment variables (see `.env.example`):
+- `AZURE_OPENAI_ENDPOINT`
+- `AZURE_OPENAI_DEPLOYMENT`
+- (optional) `AZURE_OPENAI_API_VERSION`
+
+If you prefer using a `.env` file:
 
 ```bash
-python api_server.py
+cp .env.example .env
+# edit .env
 ```
 
-The server runs on `http://localhost:5000` by default.
+### 3. Start API Server
+
+Recommended (single-port mode; serves frontend + API on 8000):
+
+```bash
+bash start_all.sh
+```
+
+Stop:
+
+```bash
+bash stop_all.sh
+```
+
+Alternatively, run directly:
+
+```bash
+FLASK_DEBUG=0 PORT=8000 python api_server.py
+```
 
 ### 4. Open Frontend
 
-Open `index.html` in a browser, or use a local server:
-
-```bash
-python -m http.server 8000
-# Then visit http://localhost:8000/index.html
-```
+Open:
+- `http://localhost:8000/index.html`
 
 ## Configuration
 
@@ -83,6 +111,36 @@ Edit `api_server.py` to change:
 - Azure OpenAI endpoint
 - Deployment name
 - API version
+
+## Sharing / Collaborator Setup
+
+For collaborators on another machine:
+
+1) Clone and install:
+
+```bash
+git clone https://github.com/CinderD/Interactive_Scaffolding.git
+cd Interactive_Scaffolding
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+2) Configure Azure access:
+- `az login` (recommended), OR set `AZURE_OPENAI_API_KEY`
+- copy `.env.example` to `.env` and fill in `AZURE_OPENAI_ENDPOINT` / `AZURE_OPENAI_DEPLOYMENT`
+
+3) Start:
+
+```bash
+bash start_all.sh
+```
+
+4) Open in browser:
+- local: `http://localhost:8000/index.html`
+- remote: `http://<server-ip>:8000/index.html`
+
+Note: remote access requires the server firewall/security group to allow inbound TCP 8000.
 
 ## Scaffolding Framework
 
